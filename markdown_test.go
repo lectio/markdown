@@ -1,7 +1,9 @@
 package markdown
 
 import (
+	"context"
 	"fmt"
+	"github.com/spf13/afero"
 	"testing"
 
 	"github.com/stretchr/testify/suite"
@@ -23,96 +25,94 @@ description: test description
 test body
 `
 
-type testContent struct {
-	id          string
-	frontmatter map[string]interface{}
-	body        string
+type readerIndexer struct {
+	key string
+	bpc BasePathConfigurator
 }
 
-func (c testContent) PrimaryKey() string {
-	return c.id
+func (i readerIndexer) ReaderPrimaryKey(context.Context) string {
+	return i.key
 }
 
-func (c testContent) Path() (string, bool) {
-	return "./", false
+func (i readerIndexer) ReadFromPathAndFileName(ctx context.Context) (afero.Fs, string) {
+	fileName := fmt.Sprintf("%s.md", i.key)
+	return i.bpc.BaseFS(ctx), fileName
 }
 
-func (c testContent) PathAndFileName() string {
-	return fmt.Sprintf("./%s.md", c.id)
-}
-
-func (c testContent) Frontmatter() map[string]interface{} {
-	return c.frontmatter
-}
-
-func (c testContent) HasFrontmatter() bool {
-	return c.frontmatter != nil
-}
-
-func (c testContent) Body() string {
-	return c.body
-}
-
-type FrontMatterSuite struct {
+type MarkdownSuite struct {
 	suite.Suite
-	fs Store
+	bpc BasePathConfigurator
+	fs  Store
 }
 
-func (suite *FrontMatterSuite) SetupSuite() {
-	suite.fs = NewFileStore(
-		func(frontmatter map[string]interface{}, haveFrontmatter bool, body []byte) (Content, error) {
-			return &testContent{id: "test01", frontmatter: frontmatter, body: string(body)}, nil
-		})
+func (suite *MarkdownSuite) SetupSuite() {
+	suite.bpc = TheBasePathConfigurator
+	suite.fs = NewFileStore(TheContentFactory, suite.bpc)
 }
 
-func (suite *FrontMatterSuite) TearDownSuite() {
+func (suite *MarkdownSuite) WriterPrimaryKey(ctx context.Context, content Content) string {
+	ic := content.(IdentifiedContent)
+	return ic.PrimaryKey()
 }
 
-func (suite *FrontMatterSuite) TestNoFrontMatter() {
-	content := testContent{frontmatter: make(map[string]interface{})}
-	body, haveFrontMatter, err := ParseYAMLFrontMatter([]byte(noFrontMatter), content.frontmatter)
-	content.body = string(body)
+func (suite *MarkdownSuite) WriteToFileName(ctx context.Context, content Content) (afero.Fs, string) {
+	fileName := fmt.Sprintf("%s.md", suite.WriterPrimaryKey(ctx, content))
+	return suite.bpc.BaseFS(ctx), fileName
+}
+
+func (suite *MarkdownSuite) TearDownSuite() {
+}
+
+func (suite *MarkdownSuite) TestNoFrontMatter() {
+	frontmatter := make(map[string]interface{})
+	bodyBytes, haveFrontMatter, err := ParseYAMLFrontMatter([]byte(noFrontMatter), frontmatter)
+	body := string(bodyBytes)
 	suite.Nil(err, "Shouldn't have any errors")
 	suite.False(haveFrontMatter, "Should not have any front matter")
-	suite.Equal(content.body, noFrontMatter)
+	suite.Equal(body, noFrontMatter)
 }
 
-func (suite *FrontMatterSuite) TestValidFrontMatter() {
-	content := testContent{id: "test01", frontmatter: make(map[string]interface{})}
-	body, haveFrontMatter, err := ParseYAMLFrontMatter([]byte(validFrontMatter), content.frontmatter)
-	content.body = string(body)
+func (suite *MarkdownSuite) TestValidFrontMatter() {
+	ctx := context.Background()
+	fmm := make(map[string]interface{})
+	bodyBytes, haveFrontMatter, err := ParseYAMLFrontMatter([]byte(validFrontMatter), fmm)
+	content, _, err := TheContentFactory.NewIdenfiedContent(ctx, "test01", fmm, haveFrontMatter, bodyBytes)
 
 	suite.Nil(err, "Shouldn't have any errors")
 	suite.True(haveFrontMatter, "Should not front matter")
 
-	suite.Equal(content.body, "test body")
+	suite.Equal(content.BodyText(), "test body")
 
-	fm := content.Frontmatter()
-	descr, ok := fm["description"]
+	fm := content.FrontMatter()
+	descr, ok := fm.Named(ctx, "description")
 	suite.True(ok, "description should be found")
-	suite.Equal(descr, "test description")
+	suite.Equal(descr.AnyValue(ctx), "test description")
 
-	suite.fs.WriteContent(content, content)
+	suite.fs.WriteContent(ctx, suite, content)
 
-	readContent, rcErr := suite.fs.GetContent(content)
+	ri := &readerIndexer{key: content.PrimaryKey(), bpc: suite.bpc}
+	readContent, rcErr := suite.fs.GetContent(ctx, ri)
 	suite.Nil(rcErr, "Should not have any read errors")
 
-	fm = readContent.Frontmatter()
-	descr, ok = fm["description"]
+	fm = readContent.FrontMatter()
+	descr, ok = fm.Named(ctx, "description")
 	suite.True(ok, "description should be found")
-	suite.Equal(descr, "test description")
+	suite.Equal(descr.AnyValue(ctx), "test description")
 
-	suite.fs.DeleteContent(readContent.(Indexer))
+	suite.fs.DeleteContent(ctx, ri)
+
+	found, _ := suite.fs.HasContent(ctx, ri)
+	suite.False(found, "file should not be found")
 }
 
-func (suite *FrontMatterSuite) TestInvalidFrontMatter() {
-	content := testContent{frontmatter: make(map[string]interface{})}
-	_, _, err := ParseYAMLFrontMatter([]byte(invalidFrontMatter1), content.frontmatter)
+func (suite *MarkdownSuite) TestInvalidFrontMatter() {
+	fmm := make(map[string]interface{})
+	_, _, err := ParseYAMLFrontMatter([]byte(invalidFrontMatter1), fmm)
 
 	suite.NotNil(err, "Should have error")
 	suite.EqualError(err, "Unexplained front matter parser error; insideFrontMatter: true, yamlStartIndex: 5, yamlEndIndex: 0")
 }
 
 func TestSuite(t *testing.T) {
-	suite.Run(t, new(FrontMatterSuite))
+	suite.Run(t, new(MarkdownSuite))
 }

@@ -2,12 +2,29 @@ package markdown
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"io"
 	"strings"
 
 	"gopkg.in/yaml.v2"
 )
+
+// A Property expresses a single front matter variable
+type Property interface {
+	Name() string
+	Value() interface{}
+	Write(context.Context, io.Writer) error
+	Init(context.Context, io.Reader) error
+}
+
+// FrontMatter is what precedes the body of markdown content
+type FrontMatter interface {
+	Properties() []Property
+	ForEach()
+	Write(context.Context, io.Writer) error
+	Init(context.Context, io.Reader) error
+}
 
 // ParseYAMLFrontMatter will convert an input byte array like ---<stuff>---\n<body> into v as YAML and <body> as return value
 func ParseYAMLFrontMatter(b []byte, v interface{}) ([]byte, bool, error) {

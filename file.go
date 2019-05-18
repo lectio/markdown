@@ -1,42 +1,54 @@
 package markdown
 
 import (
+	"context"
 	"fmt"
+	"github.com/spf13/afero"
 	"gopkg.in/yaml.v2"
-	"io/ioutil"
 	"os"
-	"path/filepath"
 )
 
-// FileIndexer indexes Content for a file
-type FileIndexer interface {
-	Indexer
-	Path() (string, bool)
-	PathAndFileName() string
+// BasePathConfigurator defines where to store results
+type BasePathConfigurator interface {
+	BasePath(ctx context.Context) string
+	BaseFS(ctx context.Context) afero.Fs
+	CreatePaths(ctx context.Context) (bool, os.FileMode)
+	ComposePath(ctx context.Context, relativePath string) (afero.Fs, error)
 }
 
-// NewContent creates a new instance of Content based on the given parameters
-type NewContent func(frontmatter map[string]interface{}, haveFrontmatter bool, body []byte) (Content, error)
+// FileReaderIndexer is used by content readers to get paths and filenames
+type FileReaderIndexer interface {
+	ReaderIndexer
+	ReadFromPathAndFileName(context.Context) (afero.Fs, string)
+}
+
+// FileWriterIndexer is used by content writers to get paths and filenames
+type FileWriterIndexer interface {
+	WriterIndexer
+	WriteToFileName(context.Context, Content) (afero.Fs, string)
+}
 
 // fileStore satisfies the Store interface for reading/writing markdown
 type fileStore struct {
-	newContent NewContent
+	bpc            BasePathConfigurator
+	contentFactory ContentFactory
 }
 
 // NewFileStore creates a markdown store which reads/writes from the filesystem
-func NewFileStore(newContent NewContent) Store {
+func NewFileStore(contentFactory ContentFactory, bpc BasePathConfigurator) Store {
 	result := new(fileStore)
-	result.newContent = newContent
+	result.bpc = bpc
+	result.contentFactory = contentFactory
 	return result
 }
 
-func (s fileStore) GetContent(indexer Indexer) (Content, error) {
-	fileName := indexer.(FileIndexer).PathAndFileName()
+func (s fileStore) GetContent(ctx context.Context, indexer ReaderIndexer) (Content, error) {
+	fs, fileName := indexer.(FileReaderIndexer).ReadFromPathAndFileName(ctx)
 	if _, err := os.Stat(fileName); os.IsNotExist(err) {
 		return nil, err
 	}
 
-	data, err := ioutil.ReadFile(fileName)
+	data, err := afero.ReadFile(fs, fileName)
 	if err != nil {
 		return nil, err
 	}
@@ -47,45 +59,38 @@ func (s fileStore) GetContent(indexer Indexer) (Content, error) {
 		return nil, err
 	}
 
-	return s.newContent(frontmatter, haveFrontmatter, body)
+	content, _, err := s.contentFactory.NewContent(ctx, frontmatter, haveFrontmatter, body)
+	return content, err
 }
 
-func (s fileStore) HasContent(indexer Indexer) (bool, error) {
-	fileName := indexer.(FileIndexer).PathAndFileName()
-	if _, err := os.Stat(fileName); os.IsNotExist(err) {
-		return false, err
-	}
-	return true, nil
+func (s fileStore) HasContent(ctx context.Context, indexer ReaderIndexer) (bool, error) {
+	fs, fileName := indexer.(FileReaderIndexer).ReadFromPathAndFileName(ctx)
+	return afero.Exists(fs, fileName)
 }
 
-func (s fileStore) WriteContent(indexer Indexer, content Content) error {
-	path, createPath := indexer.(FileIndexer).Path()
-	if createPath {
-		_, err := s.CreateDirIfNotExist(path)
-		if err != nil {
-			return err
-		}
-	}
-
-	fileName := indexer.(FileIndexer).PathAndFileName()
-	file, createErr := os.Create(filepath.Join(path, fileName))
+func (s fileStore) WriteContent(ctx context.Context, indexer WriterIndexer, content Content) error {
+	fs, fileName := indexer.(FileWriterIndexer).WriteToFileName(ctx, content)
+	file, createErr := fs.Create(fileName)
 	if createErr != nil {
 		return fmt.Errorf("Unable to create file %q: %v", fileName, createErr)
 	}
 	defer file.Close()
 
-	frontMatter, fmErr := yaml.Marshal(content.Frontmatter())
-	if fmErr != nil {
-		return fmt.Errorf("Unable to marshal front matter %q: %v", fileName, fmErr)
-	}
+	if content.HaveFrontMatter() {
+		fm := content.FrontMatter().Map(ctx)
+		frontMatter, fmErr := yaml.Marshal(fm)
+		if fmErr != nil {
+			return fmt.Errorf("Unable to marshal front matter %q: %v", fileName, fmErr)
+		}
 
-	file.WriteString("---\n")
-	_, writeErr := file.Write(frontMatter)
-	if writeErr != nil {
-		return fmt.Errorf("Unable to write front matter %q: %v", fileName, writeErr)
+		file.WriteString("---\n")
+		_, writeErr := file.Write(frontMatter)
+		if writeErr != nil {
+			return fmt.Errorf("Unable to write front matter %q: %v", fileName, writeErr)
+		}
+		file.WriteString("---\n")
 	}
-
-	_, writeErr = file.WriteString("---\n" + content.Body())
+	_, writeErr := file.Write(content.Body())
 	if writeErr != nil {
 		return fmt.Errorf("Unable to write content body %q: %v", fileName, writeErr)
 	}
@@ -95,7 +100,7 @@ func (s fileStore) WriteContent(indexer Indexer, content Content) error {
 
 // CreateDirIfNotExist creates a path if it does not exist. It is similar to mkdir -p in shell command,
 // which also creates parent directory if not exists.
-func (s fileStore) CreateDirIfNotExist(dir string) (bool, error) {
+func (s fileStore) CreateDirIfNotExist(ctx context.Context, dir string) (bool, error) {
 	if _, err := os.Stat(dir); os.IsNotExist(err) {
 		err = os.MkdirAll(dir, 0755)
 		return true, err
@@ -103,9 +108,9 @@ func (s fileStore) CreateDirIfNotExist(dir string) (bool, error) {
 	return false, nil
 }
 
-func (s fileStore) DeleteContent(indexer Indexer) error {
-	fileName := indexer.(FileIndexer).PathAndFileName()
-	err := os.Remove(fileName)
+func (s fileStore) DeleteContent(ctx context.Context, indexer ReaderIndexer) error {
+	fs, fileName := indexer.(FileReaderIndexer).ReadFromPathAndFileName(ctx)
+	err := fs.Remove(fileName)
 	if err != nil {
 		return fmt.Errorf("Unable to delete file %q: %v", fileName, err)
 	}
