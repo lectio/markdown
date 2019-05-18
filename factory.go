@@ -22,8 +22,8 @@ type NewContentFunc func(ctx context.Context, frontmatter map[string]interface{}
 // ContentFactory creates content instances
 type ContentFactory interface {
 	PropertiesFactory() properties.Factory
-	NewContent(ctx context.Context, frontmatter map[string]interface{}, haveFrontmatter bool, body []byte, options ...interface{}) (Content, bool, error)
-	NewIdenfiedContent(ctx context.Context, id string, frontmatter map[string]interface{}, haveFrontmatter bool, body []byte, options ...interface{}) (IdentifiedContent, bool, error)
+	NewContent(ctx context.Context, frontMatter properties.Properties, body []byte, options ...interface{}) (Content, bool, error)
+	NewIdenfiedContent(ctx context.Context, id string, frontMatter properties.Properties, body []byte, options ...interface{}) (IdentifiedContent, bool, error)
 }
 
 // DefaultContentFactory is the default instance
@@ -37,27 +37,13 @@ func (f *DefaultContentFactory) PropertiesFactory() properties.Factory {
 }
 
 // NewContent takes a front matter plus body text and creates a Content instance
-func (f *DefaultContentFactory) NewContent(ctx context.Context, frontMatter map[string]interface{}, havefrontMatter bool, body []byte, options ...interface{}) (Content, bool, error) {
-	if havefrontMatter {
-		props, _, err := f.PropsFactory.MutableFromStringMap(ctx, frontMatter, options...)
-		if err != nil {
-			return nil, false, err
-		}
-		return newDefaultContent(ctx, "", props, body, options...)
-	}
-	return newDefaultContent(ctx, "", nil, body, options...)
+func (f *DefaultContentFactory) NewContent(ctx context.Context, frontMatter properties.Properties, body []byte, options ...interface{}) (Content, bool, error) {
+	return newDefaultContent(ctx, "", frontMatter, body, options...)
 }
 
 // NewIdenfiedContent takes a front matter plus body text and creates a Content instance with an identity attached
-func (f *DefaultContentFactory) NewIdenfiedContent(ctx context.Context, id string, frontMatter map[string]interface{}, havefrontMatter bool, body []byte, options ...interface{}) (IdentifiedContent, bool, error) {
-	if havefrontMatter {
-		props, _, err := f.PropsFactory.MutableFromStringMap(ctx, frontMatter, options...)
-		if err != nil {
-			return nil, false, err
-		}
-		return newDefaultContent(ctx, id, props, body, options...)
-	}
-	return newDefaultContent(ctx, id, nil, body, options...)
+func (f *DefaultContentFactory) NewIdenfiedContent(ctx context.Context, id string, frontMatter properties.Properties, body []byte, options ...interface{}) (IdentifiedContent, bool, error) {
+	return newDefaultContent(ctx, id, frontMatter, body, options...)
 }
 
 // DefaultBasePathConfigurator is the default instance

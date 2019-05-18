@@ -53,13 +53,12 @@ func (s fileStore) GetContent(ctx context.Context, indexer ReaderIndexer) (Conte
 		return nil, err
 	}
 
-	frontmatter := make(map[string]interface{})
-	body, haveFrontmatter, err := ParseYAMLFrontMatter(data, &frontmatter)
+	body, props, _, err := s.contentFactory.PropertiesFactory().MutableFromFrontMatter(ctx, data, false)
 	if err != nil {
 		return nil, err
 	}
 
-	content, _, err := s.contentFactory.NewContent(ctx, frontmatter, haveFrontmatter, body)
+	content, _, err := s.contentFactory.NewContent(ctx, props, body)
 	return content, err
 }
 

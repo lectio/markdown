@@ -42,12 +42,12 @@ func (i readerIndexer) ReadFromPathAndFileName(ctx context.Context) (afero.Fs, s
 type MarkdownSuite struct {
 	suite.Suite
 	bpc BasePathConfigurator
-	fs  Store
+	fs  *fileStore
 }
 
 func (suite *MarkdownSuite) SetupSuite() {
 	suite.bpc = TheBasePathConfigurator
-	suite.fs = NewFileStore(TheContentFactory, suite.bpc)
+	suite.fs = NewFileStore(TheContentFactory, suite.bpc).(*fileStore)
 }
 
 func (suite *MarkdownSuite) WriterPrimaryKey(ctx context.Context, content Content) string {
@@ -64,23 +64,22 @@ func (suite *MarkdownSuite) TearDownSuite() {
 }
 
 func (suite *MarkdownSuite) TestNoFrontMatter() {
-	frontmatter := make(map[string]interface{})
-	bodyBytes, haveFrontMatter, err := ParseYAMLFrontMatter([]byte(noFrontMatter), frontmatter)
+	ctx := context.Background()
+	bodyBytes, props, _, err := suite.fs.contentFactory.PropertiesFactory().MutableFromFrontMatter(ctx, []byte(noFrontMatter), false)
 	body := string(bodyBytes)
 	suite.Nil(err, "Shouldn't have any errors")
-	suite.False(haveFrontMatter, "Should not have any front matter")
+	suite.Nil(props, "Should not have any front matter")
 	suite.Equal(body, noFrontMatter)
 }
 
 func (suite *MarkdownSuite) TestValidFrontMatter() {
 	ctx := context.Background()
-	fmm := make(map[string]interface{})
-	bodyBytes, haveFrontMatter, err := ParseYAMLFrontMatter([]byte(validFrontMatter), fmm)
-	content, _, err := TheContentFactory.NewIdenfiedContent(ctx, "test01", fmm, haveFrontMatter, bodyBytes)
+	bodyBytes, props, _, err := suite.fs.contentFactory.PropertiesFactory().MutableFromFrontMatter(ctx, []byte(validFrontMatter), false)
+	suite.NotNil(props, "Should have front matter")
+
+	content, _, err := TheContentFactory.NewIdenfiedContent(ctx, "test01", props, bodyBytes)
 
 	suite.Nil(err, "Shouldn't have any errors")
-	suite.True(haveFrontMatter, "Should not front matter")
-
 	suite.Equal(content.BodyText(), "test body")
 
 	fm := content.FrontMatter()
@@ -106,9 +105,8 @@ func (suite *MarkdownSuite) TestValidFrontMatter() {
 }
 
 func (suite *MarkdownSuite) TestInvalidFrontMatter() {
-	fmm := make(map[string]interface{})
-	_, _, err := ParseYAMLFrontMatter([]byte(invalidFrontMatter1), fmm)
-
+	ctx := context.Background()
+	_, _, _, err := suite.fs.contentFactory.PropertiesFactory().MutableFromFrontMatter(ctx, []byte(invalidFrontMatter1), false)
 	suite.NotNil(err, "Should have error")
 	suite.EqualError(err, "Unexplained front matter parser error; insideFrontMatter: true, yamlStartIndex: 5, yamlEndIndex: 0")
 }
