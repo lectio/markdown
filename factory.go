@@ -59,10 +59,12 @@ func newDefaultBasePathConfigurator(basePath string) *DefaultBasePathConfigurato
 		basePath: basePath,
 	}
 	result.baseFS = result.rootFS
-	if baseFS, err := result.newAferoBasePathFs(context.Background(), result.rootFS, basePath); err == nil {
-		result.baseFS = baseFS
-	} else {
-		fmt.Printf("Unable to create DefaultBasePathConfigurator.baseFS in %q, defaulting to rootFS: +v", err)
+	if len(basePath) > 0 {
+		if baseFS, err := result.newAferoBasePathFs(context.Background(), result.rootFS, basePath); err == nil {
+			result.baseFS = baseFS
+		} else {
+			fmt.Printf("Unable to create DefaultBasePathConfigurator.baseFS in %q, defaulting to rootFS: +v", err)
+		}
 	}
 	return result
 }
