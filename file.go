@@ -43,7 +43,7 @@ func NewFileStore(contentFactory ContentFactory, bpc BasePathConfigurator) Store
 	return result
 }
 
-func (s fileStore) GetContent(ctx context.Context, indexer ReaderIndexer, options ...interface{}) (Content, error) {
+func (s fileStore) GetContent(ctx context.Context, indexer ReaderIndexer, allow properties.AllowAddFunc, options ...interface{}) (Content, error) {
 	fs, fileName := indexer.(FileReaderIndexer).ReadFromPathAndFileName(ctx, options...)
 	if _, err := os.Stat(fileName); os.IsNotExist(err) {
 		return nil, err
@@ -54,7 +54,7 @@ func (s fileStore) GetContent(ctx context.Context, indexer ReaderIndexer, option
 		return nil, err
 	}
 
-	body, props, _, err := s.contentFactory.PropertiesFactory().MutableFromFrontMatter(ctx, data, false, nil, nil, options...)
+	body, props, _, err := s.contentFactory.PropertiesFactory().MutableFromFrontMatter(ctx, data, allow, options...)
 	if err != nil {
 		return nil, err
 	}

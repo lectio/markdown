@@ -11,8 +11,8 @@ github.com/kr/pretty v0.1.0/go.mod h1:dAy3ld7l9f0ibDNOQOHHMYYIIbhfbHSm3C4ZsoJORN
 github.com/kr/pty v1.1.1/go.mod h1:pFQYn66WHrOpPYNljwOMqo10TkYh1fy3cYio2l3bCsQ=
 github.com/kr/text v0.1.0 h1:45sCR5RtlFHMR4UwH9sdQ5TC8v0qDQCHnXt+kaKSTVE=
 github.com/kr/text v0.1.0/go.mod h1:4Jbv+DJW3UT/LiOwJeYQe1efqtUx/iVham/4vfdArNI=
-github.com/lectio/properties v0.0.0-20190520220009-86bd6c3a14b8 h1:+IQM1/8yRohbFENzFwNS219XN3+LJrF67x39HmHLYZc=
-github.com/lectio/properties v0.0.0-20190520220009-86bd6c3a14b8/go.mod h1:qBg5l6/dmUcnUuZL6KwAvfj21P71yWLx+O6Is/RI5Pw=
+github.com/lectio/properties v0.0.0-20190520223456-794c74d15273 h1:6xGgmnGVVcsG3GeXtu7EacJJil883m4HYsqls1C2HAs=
+github.com/lectio/properties v0.0.0-20190520223456-794c74d15273/go.mod h1:qBg5l6/dmUcnUuZL6KwAvfj21P71yWLx+O6Is/RI5Pw=
 github.com/lectio/resource v0.0.0-20190519022640-f60af9ad6c81 h1:z+YezLF8r1JzJW37Z8nPWdJo7nJJFDl0kdHNVp5Gq7E=
 github.com/lectio/resource v0.0.0-20190519022640-f60af9ad6c81/go.mod h1:EoEtIXX2xInL5Lz1P2cPiypELT0MYRRsTAeQ2hCR/NY=
 github.com/pmezard/go-difflib v1.0.0 h1:4DBwDE0NGyQoBHbLQYPwSUPoCMWR5BEzIk/f1lZbAQM=

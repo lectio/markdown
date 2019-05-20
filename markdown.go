@@ -18,7 +18,7 @@ type WriterIndexer interface {
 
 // Reader defines common reader methods
 type Reader interface {
-	GetContent(context.Context, ReaderIndexer, ...interface{}) (Content, error)
+	GetContent(context.Context, ReaderIndexer, properties.AllowAddFunc, ...interface{}) (Content, error)
 	HasContent(context.Context, ReaderIndexer, ...interface{}) (bool, error)
 }
 

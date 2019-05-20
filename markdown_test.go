@@ -66,7 +66,7 @@ func (suite *MarkdownSuite) TearDownSuite() {
 
 func (suite *MarkdownSuite) TestNoFrontMatter() {
 	ctx := context.Background()
-	bodyBytes, props, _, err := suite.fs.contentFactory.PropertiesFactory().MutableFromFrontMatter(ctx, []byte(noFrontMatter), false, nil, nil)
+	bodyBytes, props, _, err := suite.fs.contentFactory.PropertiesFactory().MutableFromFrontMatter(ctx, []byte(noFrontMatter), nil)
 	body := string(bodyBytes)
 	suite.Nil(err, "Shouldn't have any errors")
 	suite.Nil(props, "Should not have any front matter")
@@ -75,7 +75,7 @@ func (suite *MarkdownSuite) TestNoFrontMatter() {
 
 func (suite *MarkdownSuite) TestValidFrontMatter() {
 	ctx := context.Background()
-	bodyBytes, props, _, err := suite.fs.contentFactory.PropertiesFactory().MutableFromFrontMatter(ctx, []byte(validFrontMatter), false, nil, nil)
+	bodyBytes, props, _, err := suite.fs.contentFactory.PropertiesFactory().MutableFromFrontMatter(ctx, []byte(validFrontMatter), nil)
 	suite.NotNil(props, "Should have front matter")
 
 	content, _, err := TheContentFactory.NewIdenfiedContent(ctx, "test01", props, bodyBytes)
@@ -91,7 +91,7 @@ func (suite *MarkdownSuite) TestValidFrontMatter() {
 	suite.fs.WriteContent(ctx, suite, content, properties.DefaultMapAssign)
 
 	ri := &readerIndexer{key: content.PrimaryKey(), bpc: suite.bpc}
-	readContent, rcErr := suite.fs.GetContent(ctx, ri)
+	readContent, rcErr := suite.fs.GetContent(ctx, ri, properties.DefaultAllowAdd)
 	suite.Nil(rcErr, "Should not have any read errors")
 
 	fm = readContent.FrontMatter()
@@ -107,7 +107,7 @@ func (suite *MarkdownSuite) TestValidFrontMatter() {
 
 func (suite *MarkdownSuite) TestInvalidFrontMatter() {
 	ctx := context.Background()
-	_, _, _, err := suite.fs.contentFactory.PropertiesFactory().MutableFromFrontMatter(ctx, []byte(invalidFrontMatter1), false, nil, nil)
+	_, _, _, err := suite.fs.contentFactory.PropertiesFactory().MutableFromFrontMatter(ctx, []byte(invalidFrontMatter1), nil)
 	suite.NotNil(err, "Should have error")
 	suite.EqualError(err, "Unexplained front matter parser error; insideFrontMatter: true, yamlStartIndex: 5, yamlEndIndex: 0")
 }
