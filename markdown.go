@@ -2,29 +2,31 @@ package markdown
 
 import (
 	"context"
+	"github.com/lectio/properties"
 	"io"
 )
 
 // A ReaderIndexer instance provides the indexing keys for something that needs to be read
 type ReaderIndexer interface {
-	ReaderPrimaryKey(context.Context) string
+	ReaderPrimaryKey(context.Context, ...interface{}) string
 }
 
 // A WriterIndexer instance provides the indexing keys for something that needs to be written
 type WriterIndexer interface {
-	WriterPrimaryKey(context.Context, Content) string
+	WriterPrimaryKey(context.Context, Content, ...interface{}) string
 }
 
 // Reader defines common reader methods
 type Reader interface {
-	GetContent(context.Context, ReaderIndexer) (Content, error)
-	HasContent(context.Context, ReaderIndexer) (bool, error)
+	GetContent(context.Context, ReaderIndexer, ...interface{}) (Content, error)
+	HasContent(context.Context, ReaderIndexer, ...interface{}) (bool, error)
 }
 
 // Writer defines common writer methods
 type Writer interface {
-	WriteContent(context.Context, WriterIndexer, Content) error
-	DeleteContent(context.Context, ReaderIndexer) error
+	WriteContent(context.Context, WriterIndexer, Content, properties.MapAssignFunc, ...interface{}) error
+	DeleteContent(context.Context, WriterIndexer, Content, ...interface{}) error
+	DeletePrimaryKey(context.Context, ReaderIndexer, ...interface{}) error
 }
 
 // Store pulls together all the lifecyle, reader, and writer methods

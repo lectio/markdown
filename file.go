@@ -3,6 +3,7 @@ package markdown
 import (
 	"context"
 	"fmt"
+	"github.com/lectio/properties"
 	"github.com/spf13/afero"
 	"gopkg.in/yaml.v2"
 	"os"
@@ -19,13 +20,13 @@ type BasePathConfigurator interface {
 // FileReaderIndexer is used by content readers to get paths and filenames
 type FileReaderIndexer interface {
 	ReaderIndexer
-	ReadFromPathAndFileName(context.Context) (afero.Fs, string)
+	ReadFromPathAndFileName(context.Context, ...interface{}) (afero.Fs, string)
 }
 
 // FileWriterIndexer is used by content writers to get paths and filenames
 type FileWriterIndexer interface {
 	WriterIndexer
-	WriteToFileName(context.Context, Content) (afero.Fs, string)
+	WriteToFileName(context.Context, Content, ...interface{}) (afero.Fs, string)
 }
 
 // fileStore satisfies the Store interface for reading/writing markdown
@@ -42,8 +43,8 @@ func NewFileStore(contentFactory ContentFactory, bpc BasePathConfigurator) Store
 	return result
 }
 
-func (s fileStore) GetContent(ctx context.Context, indexer ReaderIndexer) (Content, error) {
-	fs, fileName := indexer.(FileReaderIndexer).ReadFromPathAndFileName(ctx)
+func (s fileStore) GetContent(ctx context.Context, indexer ReaderIndexer, options ...interface{}) (Content, error) {
+	fs, fileName := indexer.(FileReaderIndexer).ReadFromPathAndFileName(ctx, options...)
 	if _, err := os.Stat(fileName); os.IsNotExist(err) {
 		return nil, err
 	}
@@ -53,22 +54,22 @@ func (s fileStore) GetContent(ctx context.Context, indexer ReaderIndexer) (Conte
 		return nil, err
 	}
 
-	body, props, _, err := s.contentFactory.PropertiesFactory().MutableFromFrontMatter(ctx, data, false)
+	body, props, _, err := s.contentFactory.PropertiesFactory().MutableFromFrontMatter(ctx, data, false, nil, nil, options...)
 	if err != nil {
 		return nil, err
 	}
 
-	content, _, err := s.contentFactory.NewContent(ctx, props, body)
+	content, _, err := s.contentFactory.NewContent(ctx, props, body, options...)
 	return content, err
 }
 
-func (s fileStore) HasContent(ctx context.Context, indexer ReaderIndexer) (bool, error) {
-	fs, fileName := indexer.(FileReaderIndexer).ReadFromPathAndFileName(ctx)
+func (s fileStore) HasContent(ctx context.Context, indexer ReaderIndexer, options ...interface{}) (bool, error) {
+	fs, fileName := indexer.(FileReaderIndexer).ReadFromPathAndFileName(ctx, options...)
 	return afero.Exists(fs, fileName)
 }
 
-func (s fileStore) WriteContent(ctx context.Context, indexer WriterIndexer, content Content) error {
-	fs, fileName := indexer.(FileWriterIndexer).WriteToFileName(ctx, content)
+func (s fileStore) WriteContent(ctx context.Context, indexer WriterIndexer, content Content, assign properties.MapAssignFunc, options ...interface{}) error {
+	fs, fileName := indexer.(FileWriterIndexer).WriteToFileName(ctx, content, options...)
 	file, createErr := fs.Create(fileName)
 	if createErr != nil {
 		return fmt.Errorf("Unable to create file %q: %v", fileName, createErr)
@@ -76,7 +77,8 @@ func (s fileStore) WriteContent(ctx context.Context, indexer WriterIndexer, cont
 	defer file.Close()
 
 	if content.HaveFrontMatter() {
-		fm := content.FrontMatter().Map(ctx)
+		fm := make(map[string]interface{})
+		content.FrontMatter().Map(ctx, fm, assign, options...)
 		frontMatter, fmErr := yaml.Marshal(fm)
 		if fmErr != nil {
 			return fmt.Errorf("Unable to marshal front matter %q: %v", fileName, fmErr)
@@ -97,18 +99,17 @@ func (s fileStore) WriteContent(ctx context.Context, indexer WriterIndexer, cont
 	return nil
 }
 
-// CreateDirIfNotExist creates a path if it does not exist. It is similar to mkdir -p in shell command,
-// which also creates parent directory if not exists.
-func (s fileStore) CreateDirIfNotExist(ctx context.Context, dir string) (bool, error) {
-	if _, err := os.Stat(dir); os.IsNotExist(err) {
-		err = os.MkdirAll(dir, 0755)
-		return true, err
+func (s fileStore) DeleteContent(ctx context.Context, indexer WriterIndexer, content Content, options ...interface{}) error {
+	fs, fileName := indexer.(FileWriterIndexer).WriteToFileName(ctx, content, options...)
+	err := fs.Remove(fileName)
+	if err != nil {
+		return fmt.Errorf("Unable to delete file %q: %v", fileName, err)
 	}
-	return false, nil
+	return nil
 }
 
-func (s fileStore) DeleteContent(ctx context.Context, indexer ReaderIndexer) error {
-	fs, fileName := indexer.(FileReaderIndexer).ReadFromPathAndFileName(ctx)
+func (s fileStore) DeletePrimaryKey(ctx context.Context, indexer ReaderIndexer, options ...interface{}) error {
+	fs, fileName := indexer.(FileReaderIndexer).ReadFromPathAndFileName(ctx, options...)
 	err := fs.Remove(fileName)
 	if err != nil {
 		return fmt.Errorf("Unable to delete file %q: %v", fileName, err)
