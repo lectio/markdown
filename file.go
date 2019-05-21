@@ -43,7 +43,7 @@ func NewFileStore(contentFactory ContentFactory, bpc BasePathConfigurator) Store
 	return result
 }
 
-func (s fileStore) GetContent(ctx context.Context, indexer ReaderIndexer, allow properties.AllowAddFunc, options ...interface{}) (Content, error) {
+func (s fileStore) GetContent(ctx context.Context, indexer ReaderIndexer, checkAllow AllowFrontMatterPropertyFunc, options ...interface{}) (Content, error) {
 	fs, fileName := indexer.(FileReaderIndexer).ReadFromPathAndFileName(ctx, options...)
 	if _, err := os.Stat(fileName); os.IsNotExist(err) {
 		return nil, err
@@ -52,6 +52,11 @@ func (s fileStore) GetContent(ctx context.Context, indexer ReaderIndexer, allow 
 	data, err := afero.ReadFile(fs, fileName)
 	if err != nil {
 		return nil, err
+	}
+
+	var allow properties.AllowAddFunc
+	if checkAllow != nil {
+		allow = checkAllow(ctx, indexer, options...)
 	}
 
 	body, props, _, err := s.contentFactory.PropertiesFactory().MutableFromFrontMatter(ctx, data, allow, options...)
@@ -68,7 +73,7 @@ func (s fileStore) HasContent(ctx context.Context, indexer ReaderIndexer, option
 	return afero.Exists(fs, fileName)
 }
 
-func (s fileStore) WriteContent(ctx context.Context, indexer WriterIndexer, content Content, assign properties.MapAssignFunc, options ...interface{}) error {
+func (s fileStore) WriteContent(ctx context.Context, indexer WriterIndexer, content Content, prepare PrepareToWriteFrontMatterFunc, options ...interface{}) error {
 	fs, fileName := indexer.(FileWriterIndexer).WriteToFileName(ctx, content, options...)
 	file, createErr := fs.Create(fileName)
 	if createErr != nil {
@@ -78,6 +83,10 @@ func (s fileStore) WriteContent(ctx context.Context, indexer WriterIndexer, cont
 
 	if content.HaveFrontMatter() {
 		fm := make(map[string]interface{})
+		var assign properties.MapAssignFunc
+		if prepare != nil {
+			assign = prepare(ctx, indexer, content, options...)
+		}
 		content.FrontMatter().Map(ctx, fm, assign, options...)
 		frontMatter, fmErr := yaml.Marshal(fm)
 		if fmErr != nil {

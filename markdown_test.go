@@ -3,7 +3,6 @@ package markdown
 import (
 	"context"
 	"fmt"
-	"github.com/lectio/properties"
 	"github.com/spf13/afero"
 	"testing"
 
@@ -88,10 +87,10 @@ func (suite *MarkdownSuite) TestValidFrontMatter() {
 	suite.True(ok, "description should be found")
 	suite.Equal(descr.AnyValue(ctx), "test description")
 
-	suite.fs.WriteContent(ctx, suite, content, properties.DefaultMapAssign)
+	suite.fs.WriteContent(ctx, suite, content, nil)
 
 	ri := &readerIndexer{key: content.PrimaryKey(), bpc: suite.bpc}
-	readContent, rcErr := suite.fs.GetContent(ctx, ri, properties.DefaultAllowAdd)
+	readContent, rcErr := suite.fs.GetContent(ctx, ri, nil)
 	suite.Nil(rcErr, "Should not have any read errors")
 
 	fm = readContent.FrontMatter()

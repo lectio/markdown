@@ -16,15 +16,21 @@ type WriterIndexer interface {
 	WriterPrimaryKey(context.Context, Content, ...interface{}) string
 }
 
+// AllowFrontMatterPropertyFunc allows custom handling of front matter properties for reading
+type AllowFrontMatterPropertyFunc func(context.Context, ReaderIndexer, ...interface{}) properties.AllowAddFunc
+
 // Reader defines common reader methods
 type Reader interface {
-	GetContent(context.Context, ReaderIndexer, properties.AllowAddFunc, ...interface{}) (Content, error)
+	GetContent(context.Context, ReaderIndexer, AllowFrontMatterPropertyFunc, ...interface{}) (Content, error)
 	HasContent(context.Context, ReaderIndexer, ...interface{}) (bool, error)
 }
 
+// PrepareToWriteFrontMatterFunc allows custom handling of front matter properties before writing
+type PrepareToWriteFrontMatterFunc func(context.Context, WriterIndexer, Content, ...interface{}) properties.MapAssignFunc
+
 // Writer defines common writer methods
 type Writer interface {
-	WriteContent(context.Context, WriterIndexer, Content, properties.MapAssignFunc, ...interface{}) error
+	WriteContent(context.Context, WriterIndexer, Content, PrepareToWriteFrontMatterFunc, ...interface{}) error
 	DeleteContent(context.Context, WriterIndexer, Content, ...interface{}) error
 	DeletePrimaryKey(context.Context, ReaderIndexer, ...interface{}) error
 }
