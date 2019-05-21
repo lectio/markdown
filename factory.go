@@ -23,7 +23,7 @@ type NewContentFunc func(ctx context.Context, frontmatter map[string]interface{}
 type ContentFactory interface {
 	PropertiesFactory() properties.Factory
 	NewContent(ctx context.Context, frontMatter properties.Properties, body []byte, options ...interface{}) (Content, bool, error)
-	NewIdenfiedContent(ctx context.Context, id string, frontMatter properties.Properties, body []byte, options ...interface{}) (IdentifiedContent, bool, error)
+	NewIdentifiedContent(ctx context.Context, id string, frontMatter properties.Properties, body []byte, options ...interface{}) (IdentifiedContent, bool, error)
 }
 
 // DefaultContentFactory is the default instance
@@ -41,8 +41,8 @@ func (f *DefaultContentFactory) NewContent(ctx context.Context, frontMatter prop
 	return newDefaultContent(ctx, "", frontMatter, body, options...)
 }
 
-// NewIdenfiedContent takes a front matter plus body text and creates a Content instance with an identity attached
-func (f *DefaultContentFactory) NewIdenfiedContent(ctx context.Context, id string, frontMatter properties.Properties, body []byte, options ...interface{}) (IdentifiedContent, bool, error) {
+// NewIdentifiedContent takes a front matter plus body text and creates a Content instance with an identity attached
+func (f *DefaultContentFactory) NewIdentifiedContent(ctx context.Context, id string, frontMatter properties.Properties, body []byte, options ...interface{}) (IdentifiedContent, bool, error) {
 	return newDefaultContent(ctx, id, frontMatter, body, options...)
 }
 

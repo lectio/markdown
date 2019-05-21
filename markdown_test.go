@@ -78,7 +78,7 @@ func (suite *MarkdownSuite) TestValidFrontMatter() {
 	bodyBytes, props, _, err := suite.fs.contentFactory.PropertiesFactory().MutableFromFrontMatter(ctx, []byte(validFrontMatter), nil)
 	suite.NotNil(props, "Should have front matter")
 
-	content, _, err := TheContentFactory.NewIdenfiedContent(ctx, "test01", props, bodyBytes)
+	content, _, err := TheContentFactory.NewIdentifiedContent(ctx, "test01", props, bodyBytes)
 
 	suite.Nil(err, "Shouldn't have any errors")
 	suite.Equal(content.BodyText(), "test body")
