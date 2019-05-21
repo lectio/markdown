@@ -13,7 +13,7 @@ var (
 	TheContentFactory = &DefaultContentFactory{PropsFactory: properties.ThePropertiesFactory}
 
 	// TheBasePathConfigurator can be used for the current directory
-	TheBasePathConfigurator = newDefaultBasePathConfigurator("")
+	TheBasePathConfigurator = NewBasePathConfigurator("")
 )
 
 // NewContentFunc creates a new instance of Content based on the given parameters
@@ -53,7 +53,7 @@ type DefaultBasePathConfigurator struct {
 	baseFS   afero.Fs
 }
 
-func newDefaultBasePathConfigurator(basePath string) *DefaultBasePathConfigurator {
+func NewBasePathConfigurator(basePath string) *DefaultBasePathConfigurator {
 	result := &DefaultBasePathConfigurator{
 		rootFS:   afero.NewOsFs(),
 		basePath: basePath,
